@@ -14,7 +14,7 @@ Ever wanted to start a new world, but couldn't leave your old home behind? With 
 
 ### Get started
 
-For **Minecraft 26.3 · Fabric**. Install [Fabric API](https://modrinth.com/mod/fabric-api) and the mod JAR from [Releases](https://github.com/topasmusic/Farbound/releases). Multiplayer requires Farbound on the server and each participating player's client.
+For **Minecraft 26.2 or 26.3 · Fabric**. Choose the Farbound JAR matching your Minecraft version. Install [Fabric API](https://modrinth.com/mod/fabric-api) and the mod JAR from [Releases](https://github.com/topasmusic/Farbound/releases). Multiplayer requires Farbound on the server and each participating player's client.
 
 Open **`/farbound`**, choose your settings, then select **Review & start**.
 

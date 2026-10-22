@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "farbound",
+  "version": "${version}",
+  "name": "Farbound",
+  "description": "A new beginning. The same world. Solo and group expeditions with safe player profiles.",
+  "authors": ["TopasMusic"],
+  "contact": {"homepage": "https://github.com/topasmusic/Farbound", "sources": "https://github.com/topasmusic/Farbound", "issues": "https://github.com/topasmusic/Farbound/issues"},
+  "icon": "assets/farbound/icon.png",
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {"main": ["de.topas.farbound.Farbound"], "client": ["de.topas.farbound.client.FarboundClient"]},
+  "mixins": ["farbound.mixins.json"],
+  "depends": {"fabricloader": ">=0.19.3", "minecraft": "~26.2", "java": ">=25", "fabric-api": ">=0.153.0+26.2"}
+}

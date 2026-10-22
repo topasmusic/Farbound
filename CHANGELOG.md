@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0 · Minecraft 26.2 port · 22 October 2026
+
+- Adds a separate Fabric build for Minecraft 26.2 with the same expedition features.
+- Requires Fabric Loader 0.19.3+, Fabric API 0.153.0+26.2 and Java 25.
+
+
 ## 1.0.0 · 22 October 2026
 
 - Explore far from home, solo or with up to seven friends.

@@ -22,3 +22,15 @@
 !/design/assets/farbound-icon-64.png
 
 /26.3/src/test/
+
+!/26.2/
+/26.2/*
+!/26.2/src/
+!/26.2/gradle/
+!/26.2/build.gradle
+!/26.2/settings.gradle
+!/26.2/gradle.properties
+!/26.2/gradlew
+!/26.2/gradlew.bat
+/26.2/src/**/.DS_Store
+/26.2/src/test/
