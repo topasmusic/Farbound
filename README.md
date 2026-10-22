@@ -189,8 +189,7 @@ Farbound. Use a separate test world/full world copy for first acceptance.
 The transparent platform icon is **exactly64×64 pixels**:
 [farbound-icon-64.png](design/assets/farbound-icon-64.png).
 The same PNG is embedded as the mod icon. The English title and FB icon were made
-with the built-in Imagegen tool; prompts/originals/exports are documented in
-[ASSET_NOTES.md](design/assets/ASSET_NOTES.md). Panels/toggles are ordinary Minecraft
+with the built-in Imagegen tool. Panels/toggles are ordinary Minecraft
 drawing primitives, so they remain interactive and scale cleanly.
 
 ## Development and validation
