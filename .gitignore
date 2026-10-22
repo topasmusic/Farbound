@@ -1,0 +1,23 @@
+# Publish only the source project and player-facing documentation.
+/*
+!/.gitignore
+!/README.md
+!/CHANGELOG.md
+!/LICENSE
+!/RELEASE_NOTES.md
+!/26.3/
+!/design/
+/26.3/*
+!/26.3/src/
+!/26.3/gradle/
+!/26.3/build.gradle
+!/26.3/settings.gradle
+!/26.3/gradle.properties
+!/26.3/gradlew
+!/26.3/gradlew.bat
+/26.3/src/**/.DS_Store
+/design/*
+!/design/assets/
+/design/assets/*
+!/design/assets/farbound-icon-64.png
+
