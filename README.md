@@ -1,6 +1,6 @@
 # Farbound
 
-![Farbound](design/assets/farbound-icon-64.png)
+![Farbound](design/assets/farbound-title-original.png)
 
 **A new beginning. The same world.**
 
