@@ -7,7 +7,7 @@
   "authors": ["TopasMusic"],
   "contact": {"homepage": "https://github.com/topasmusic/Farbound", "sources": "https://github.com/topasmusic/Farbound", "issues": "https://github.com/topasmusic/Farbound/issues"},
   "icon": "assets/farbound/icon.png",
-  "license": "All-Rights-Reserved",
+  "license": "MIT",
   "environment": "*",
   "entrypoints": {"main": ["de.topas.farbound.Farbound"], "client": ["de.topas.farbound.client.FarboundClient"]},
   "mixins": ["farbound.mixins.json"],

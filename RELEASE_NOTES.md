@@ -1,36 +1,27 @@
-# Farbound 1.0.0 — A new beginning. The same world.
+# Farbound 1.0.0
 
-First public release for **Minecraft 26.3 / Fabric**, by TopasMusic.
+**Ever wanted to start a new world, but couldn't leave your old home behind?**
 
-- Solo or voluntary group expeditions, up to eight players, within your existing world.
-- Destinations 10,000, 50,000, 100,000 or 1,000,000 blocks away, subject to server limits.
-- Store your home inventory or take everything; independently store ender chest and XP.
-- Optional travel-home challenge with a default 100-block horizontal home radius.
-- Pause and return home, then resume with separate expedition gear and exact XP.
-  Pause requires stored inventory and stored XP. Only one expedition per world.
-- Online-player invitations, readiness review, personal return, group dimension votes
-  and operator tools, all through **`/farbound`**.
-- English dashboard, Minecraft player heads, contextual help, opacity presets and
-  a central departure countdown with vanilla sounds. Extra corner HUD off by default.
+With Farbound, you can have both. Travel far from your base, start a fresh adventure and return whenever you're ready — all in the same Minecraft world. Your old home stays right where you left it.
 
-## Installation
+### Your next adventure
 
-Use Java25, Fabric Loader0.19.5 or newer and Fabric API0.161.0+26.3 or newer.
-Install `farbound-1.0.0-mc26.3.jar` on the server and every expedition participant's
-client (or in the client for singleplayer). Do not install the sources JAR.
+- **Go solo or bring friends.** Invite online players for expeditions with up to eight people.
+- **Choose your distance.** Head into distant lands, with an optional challenge to travel home yourself.
+- **Choose your gear.** Take your equipment or store it at home. Decide separately for XP and your ender chest.
+- **Take a break at home.** Pause, return to your base and resume later with your saved expedition gear and XP. Requires stored inventory and XP.
+- **One simple menu.** Open `/farbound` for setup, invitations, pause and return, with tooltips and a countdown with vanilla sounds.
 
-Store expedition loot in ordinary chests before a final restoration of stored
-inventory/ender chest slots. Home XP replaces expedition XP when finalizing.
-Back up the complete world, player data and Farbound state together before updates.
+### Install & play
 
-## Validation and limits
+**Minecraft 26.3 · Fabric Loader 0.19.5+ · Fabric API 0.161.0+26.3 · Java 25**
 
-98 automated tests cover service/profile-switch recovery, inventory codecs, groups,
-permissions and UI input/layout. No Minecraft client/server/world or GameTest was
-started by the development agent. Full live multiplayer, actual crash/power-loss,
-modpack compatibility and visual/audio/performance acceptance are not established
-by these tests. Hardcore is unsupported; extra inventory mods require an adapter
-for stored profiles. Unknown bases/claims cannot be reliably excluded from targets.
+Download `farbound-1.0.0-mc26.3.jar` and install it alongside Fabric API. Multiplayer requires Farbound on the server and every participating player's client. The sources JAR is for developers.
 
-Licensed All Rights Reserved. Source, issues and releases:
-https://github.com/topasmusic/Farbound
+### Before returning
+
+Put expedition loot in ordinary chests before finishing: your stored home inventory and XP replace expedition gear and XP. Pause keeps your expedition profile for later. Only one expedition can be open per world. When travelling home is required, return within 100 blocks of your original departure point in the same dimension (server settings may vary).
+
+### License
+
+Farbound, including version 1.0.0 and its downloadable files, is available under the [MIT License](https://github.com/topasmusic/Farbound/blob/main/LICENSE). This permission replaces the earlier All Rights Reserved notice in the original 1.0.0 files.
