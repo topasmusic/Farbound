@@ -2,6 +2,10 @@ package de.topas.farbound.client;
 
 import de.topas.farbound.FarboundNetwork;
 import de.topas.farbound.DepartureCountdown;
+import de.topas.farbound.FarboundHandshake;
+import io.netty.buffer.Unpooled;
+import net.minecraft.network.FriendlyByteBuf;
+import java.util.concurrent.CompletableFuture;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.*;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
@@ -12,11 +16,14 @@ import java.nio.file.*;
 
 public final class FarboundClient implements ClientModInitializer {
     public static FarboundNetwork.View view = FarboundNetwork.View.finished();
+    private static long viewReceivedAt = System.nanoTime();
     public static boolean hud = false;
     public static int opacity = 195;
     private static final DepartureCountdown COUNTDOWN = new DepartureCountdown();
     private static final Path PREFS = FabricLoader.getInstance().getConfigDir().resolve("farbound-client.json");
     public void onInitializeClient() {
+        ClientLoginNetworking.registerGlobalReceiver(FarboundHandshake.CHANNEL, (client, handler, request, callbacks) ->
+            CompletableFuture.completedFuture(new FriendlyByteBuf(Unpooled.buffer()).writeUtf(FarboundHandshake.version())));
         try { if (Files.exists(PREFS)) { var prefs = FarboundNetwork.JSON.fromJson(Files.readString(PREFS), Preferences.class); hud = prefs.hud; opacity = prefs.opacity; } }
         catch (Exception ignored) { hud = false; opacity = 195; }
         ClientPlayNetworking.registerGlobalReceiver(FarboundNetwork.State.TYPE, (payload, context) -> {
@@ -31,6 +38,7 @@ public final class FarboundClient implements ClientModInitializer {
                         cue == DepartureCountdown.Cue.ARRIVAL ? .35f : .25f));
                 }
                 view = next;
+                viewReceivedAt = System.nanoTime();
                 if (beginsCountdown && context.client().gui.screen() instanceof FarboundScreen) context.client().gui.setScreen(null);
                 else if (next.open && !(context.client().gui.screen() instanceof FarboundScreen)) context.client().gui.setScreen(new FarboundScreen());
                 else if (context.client().gui.screen() instanceof FarboundScreen screen) screen.update();
@@ -67,6 +75,10 @@ public final class FarboundClient implements ClientModInitializer {
     public static String time(long ticks) {
         long s = Math.max(0, ticks) / 20;
         return String.format("%02d:%02d:%02d", s / 3600, s / 60 % 60, s % 60);
+    }
+    public static int cooldownSeconds() {
+        long elapsed = Math.max(0, System.nanoTime() - viewReceivedAt) / 1_000_000_000L;
+        return (int)Math.max(0, view.cooldownSeconds - elapsed);
     }
     public static void action(String action, String value) {
         if (ClientPlayNetworking.canSend(FarboundNetwork.Action.TYPE)) { view.notice = ""; ClientPlayNetworking.send(new FarboundNetwork.Action(action, value, view.revision)); }

@@ -11,6 +11,7 @@ public final class FarboundConfig {
     public boolean enabled = true;
     public int schema=2;
     public int maxDistance = 1000000, maxMembers = 8, cooldownSeconds = 60, homeRadius = 100;
+    /** Legacy setting retained for old config files; expeditions are open to everyone. */
     public Set<UUID> allowedPlayers = new HashSet<>();
     public Set<String> extraInventoryMods = new HashSet<>(Set.of("trinkets", "accessories", "curios", "inventorio", "rpginventory"));
     public List<Circle> protectedAreas = new ArrayList<>();
@@ -35,7 +36,7 @@ public final class FarboundConfig {
             return config;
         } catch (RuntimeException ex) { throw new IOException("Farbound configuration cannot be read.", ex); }
     }
-    public boolean mayStart(UUID player) { return enabled && (allowedPlayers.isEmpty() || allowedPlayers.contains(player)); }
+    public boolean mayStart(UUID player) { return enabled; }
     public boolean inventorySupported(String mode, Set<String> loadedMods) {
         return mode.equals("KEEP") || Collections.disjoint(extraInventoryMods, loadedMods);
     }

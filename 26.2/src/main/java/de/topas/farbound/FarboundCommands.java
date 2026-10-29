@@ -11,7 +11,7 @@ public final class FarboundCommands {
         dispatcher.register(literal("farbound").executes(context->{
             var player=context.getSource().getPlayerOrException();
             if(!net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(player,FarboundNetwork.State.TYPE)){
-                ExpeditionService.message(player,"Install Farbound on this client to open the dashboard with /farbound.");return 0;
+                ExpeditionService.message(player,"Install Farbound 1.0.1 on this client to open the dashboard with /farbound.");return 0;
             }
             if(Farbound.service!=null)Farbound.service.handle(player,"open","",-1);
             return 1;

@@ -1,3 +1,25 @@
+# Farbound 1.0.2
+
+The expedition menu now counts down the remaining wait automatically. Custom destination fields keep keyboard focus, cursor position and selections while server updates arrive, so you can enter and edit X / Z normally.
+
+Joining now requires exactly the same Farbound version on server and client. Missing or mismatched versions are rejected before joining, with an update hint.
+
+Also includes the 1.0.1 improvements: custom Overworld destinations with safe surface search within 100 blocks, independent simultaneous solo/group expeditions, and access for all players without OP permission. Invitations remain voluntary; existing expeditions are preserved.
+
+Install the matching Minecraft 26.2 or 26.3 Fabric build on the server and participating clients, alongside Fabric API. Back up the world and player data together before updating.
+
+---
+
+# Farbound 1.0.1
+
+Start your own adventure while your friends explore theirs. Independent solo and group expeditions can now run at the same time, and every player can use Farbound without OP rights.
+
+Choose a random distance or enter custom Overworld X / Z coordinates. Farbound searches for a safe surface within 100 blocks of your target, while respecting the world border and configured protected areas.
+
+Install the matching Minecraft 26.2 or 26.3 build on the server and participating clients. Existing expeditions are preserved when their storage is upgraded.
+
+---
+
 # Farbound 1.0.0
 
 **Ever wanted to start a new world, but couldn't leave your old home behind?**

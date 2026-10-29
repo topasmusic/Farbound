@@ -18,6 +18,7 @@ public final class Farbound implements ModInitializer {
     public void onInitialize() {
         Registry.register(BuiltInRegistries.TICKET_TYPE, Identifier.fromNamespaceAndPath("farbound", "search"), SEARCH_TICKET);
         FarboundNetwork.register();
+        FarboundHandshake.registerServer();
         CommandRegistrationCallback.EVENT.register((dispatcher, context, selection) -> FarboundCommands.register(dispatcher));
         ServerLifecycleEvents.SERVER_STARTING.register(server -> service = new ExpeditionService(server));
         ServerTickEvents.END_SERVER_TICK.register(server -> { if (service != null) service.tick(); });

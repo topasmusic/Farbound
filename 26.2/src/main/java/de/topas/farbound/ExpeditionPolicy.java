@@ -26,5 +26,21 @@ public final class ExpeditionPolicy {
             && x > minX + margin && x < maxX - margin && z > minZ + margin && z < maxZ - margin;
     }
     public static boolean acceptRevision(int supplied, int current) { return supplied == current; }
+    public static int[] coordinates(String value) {
+        String[] parts = value.trim().split("\\s+");
+        if (parts.length != 2) throw new IllegalArgumentException("Enter two whole Overworld coordinates: X Z. Height is selected automatically.");
+        int[] result = new int[2];
+        try {
+            for (int i = 0; i < 2; i++) {
+                if (!parts[i].matches("[+-]?[0-9]{1,8}")) throw new NumberFormatException();
+                result[i] = Integer.parseInt(parts[i]);
+                if (Math.abs((long) result[i]) > 29999984) throw new NumberFormatException();
+            }
+        } catch (NumberFormatException ex) { throw new IllegalArgumentException("X and Z must be whole numbers between -29999984 and 29999984."); }
+        return result;
+    }
+    public static boolean withinCustomRadius(int targetX, int targetZ, int x, int z) {
+        return Math.hypot((double)x - targetX, (double)z - targetZ) <= 100;
+    }
 }
 

@@ -13,19 +13,21 @@ public final class FarboundNetwork {
     public static final Gson JSON = new Gson();
     private FarboundNetwork() {}
     public record Action(String action, String value, int revision) implements CustomPacketPayload {
-        public static final Type<Action> TYPE = new Type<>(Identifier.fromNamespaceAndPath("farbound", "action"));
+        public static final Type<Action> TYPE = new Type<>(Identifier.fromNamespaceAndPath("farbound", "action_v2"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Action> CODEC = StreamCodec.composite(
             ByteBufCodecs.stringUtf8(32), Action::action, ByteBufCodecs.stringUtf8(128), Action::value,
             ByteBufCodecs.VAR_INT, Action::revision, Action::new);
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
     public record State(String json) implements CustomPacketPayload {
-        public static final Type<State> TYPE = new Type<>(Identifier.fromNamespaceAndPath("farbound", "state"));
+        public static final Type<State> TYPE = new Type<>(Identifier.fromNamespaceAndPath("farbound", "state_v2"));
         public static final StreamCodec<RegistryFriendlyByteBuf, State> CODEC = StreamCodec.composite(ByteBufCodecs.stringUtf8(262144), State::json, State::new);
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
     public static class View {
         public int revision, distance, countdown, remaining, homeRadius=100, cooldownSeconds;
+        public boolean customDestination;
+        public int customX, customZ;
         public boolean admin, canPause, homeReached, occupied;
         public String adminInfo="";
         public List<Online> online=new ArrayList<>();

@@ -20,23 +20,40 @@ public final class SpawnSearch implements AutoCloseable {
     private CompletableFuture<?> pending;
     private ChunkPos held;
     private int ticks, attempts;
+    private final List<ChunkPos> customChunks;
+    private boolean closed;
     public List<BlockPos> result;
     public boolean failed;
     public SpawnSearch(ServerLevel level, Expedition expedition, List<Expedition.Position> protectedStarts, List<FarboundConfig.Circle> protectedAreas) {
         this.level = level; this.expedition = expedition; this.protectedStarts = protectedStarts;
         this.protectedAreas = List.copyOf(protectedAreas);
+        customChunks = new ArrayList<>();
+        if (expedition.customDestination) {
+            for (int z = Math.floorDiv(expedition.customZ - 100, 16); z <= Math.floorDiv(expedition.customZ + 100, 16); z++)
+                for (int x = Math.floorDiv(expedition.customX - 100, 16); x <= Math.floorDiv(expedition.customX + 100, 16); x++)
+                    customChunks.add(new ChunkPos(x, z));
+            customChunks.sort(Comparator.comparingDouble(c -> Math.hypot(c.getMiddleBlockX() - (double)expedition.customX, c.getMiddleBlockZ() - (double)expedition.customZ)));
+        }
     }
     public int attempts() { return attempts; }
     public void tick() {
-        if (failed || result != null) return;
-        if (++ticks > 1800 || attempts >= 48) { failed = true; close(); return; }
+        if (closed || failed || result != null) return;
+        if (++ticks > 1800) { failed = true; close(); return; }
         if (pending != null) {
             if (!pending.isDone()) return;
             if (!pending.isCompletedExceptionally() && level.getChunkSource().getChunkNow(held.x(), held.z()) != null) {
-                var positions = groupPositions(level, held.getMiddleBlockX(), held.getMiddleBlockZ(), expedition.members.size());
+                var positions = expedition.customDestination ? customPositions(held) : groupPositions(level, held.getMiddleBlockX(), held.getMiddleBlockZ(), expedition.members.size());
                 if (positions.size() == expedition.members.size()) { result = positions; return; }
             }
-            close(); pending = null;
+            releaseChunk(); pending = null;
+            return;
+        }
+        int limit = expedition.customDestination ? customChunks.size() : 48;
+        if (attempts >= limit) { failed = true; close(); return; }
+        if (expedition.customDestination) {
+            var chunk = customChunks.get(attempts++);
+            if (customColumns(chunk).isEmpty()) return;
+            request(chunk);
             return;
         }
         attempts++;
@@ -52,9 +69,37 @@ public final class SpawnSearch implements AutoCloseable {
         final int candidateX = x, candidateZ = z;
         if (protectedStarts.stream().anyMatch(p -> Math.hypot(p.x() - candidateX, p.z() - candidateZ) < 1024)) return;
         if (protectedAreas.stream().anyMatch(c -> Math.hypot(c.x() - candidateX, c.z() - candidateZ) < c.radius() + 16)) return;
+        request(chunk);
+    }
+    private void request(ChunkPos chunk) {
         held = chunk;
         level.getChunkSource().addTicketWithRadius(Farbound.SEARCH_TICKET, held, 1);
         pending = level.getChunkSource().getChunkFuture(held.x(), held.z(), ChunkStatus.FULL, true);
+    }
+    /** Scan loaded chunk interiors only; safety checks never generate an adjacent chunk synchronously. */
+    private List<BlockPos> customPositions(ChunkPos chunk) {
+        var columns = customColumns(chunk);
+        columns.sort(Comparator.comparingDouble(p -> Math.hypot(p.getX() - (double)expedition.customX, p.getZ() - (double)expedition.customZ)));
+        var positions = new ArrayList<BlockPos>();
+        for (var column : columns) {
+            int x = column.getX(), z = column.getZ();
+            if (positions.stream().anyMatch(p -> Math.hypot(p.getX() - x, p.getZ() - z) < 2)) continue;
+            var pos = new BlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
+            if (safe(level, pos)) positions.add(pos);
+            if (positions.size() == expedition.members.size()) break;
+        }
+        return positions;
+    }
+    private ArrayList<BlockPos> customColumns(ChunkPos chunk) {
+        var columns = new ArrayList<BlockPos>();
+        for (int dz = 1; dz < 15; dz++) for (int dx = 1; dx < 15; dx++) {
+            int x = chunk.getMinBlockX() + dx, z = chunk.getMinBlockZ() + dz;
+            var pos = new BlockPos(x, 0, z);
+            if (ExpeditionPolicy.withinCustomRadius(expedition.customX, expedition.customZ, x, z)
+                && level.getWorldBorder().isWithinBounds(pos)
+                && protectedAreas.stream().noneMatch(c -> Math.hypot(c.x() - (x + .5), c.z() - (z + .5)) < c.radius() + 16)) columns.add(pos);
+        }
+        return columns;
     }
     public static List<BlockPos> groupPositions(ServerLevel level, int x, int z, int count) {
         var result = new ArrayList<BlockPos>();
@@ -94,6 +139,10 @@ public final class SpawnSearch implements AutoCloseable {
         return null;
     }
     public void close() {
+        closed = true;
+        releaseChunk();
+    }
+    private void releaseChunk() {
         if (held != null) level.getChunkSource().removeTicketWithRadius(Farbound.SEARCH_TICKET, held, 1);
         held = null;
     }

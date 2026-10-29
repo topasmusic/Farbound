@@ -8,6 +8,8 @@ public final class Expedition {
     public String status = "DRAFT";
     public int revision = 1;
     public int distance = 10000;
+    public boolean customDestination;
+    public int customX, customZ;
     public boolean worldSpawn, homeward, netherBlocked, endBlocked;
     public long elapsedTicks;
     public int countdown = 10;

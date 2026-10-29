@@ -17,8 +17,9 @@ import static de.topas.farbound.client.FarboundTheme.*;
 public final class FarboundScreen extends Screen {
     private FarboundUiLayout layout;
     private final List<Help> help = new ArrayList<>();
-    private final List<UiButton> modalButtons=new ArrayList<>();
+    private final List<AbstractWidget> modalButtons=new ArrayList<>();
     private int onlinePage, recoveryPage;
+    private String coordinateX = "0", coordinateZ = "0", coordinateError = "";
     private String confirmation, acknowledgedNotice = "", dropdown;
     private List<Option> options = List.of();
     private Rect menuBounds;
@@ -26,6 +27,7 @@ public final class FarboundScreen extends Screen {
     private boolean friends, pendingLaunch;
     private int lastRevision = -1, pendingRevision, menuSelection;
     private long pendingSince;
+    private UiButton newExpeditionButton;
     private record Help(Rect bounds, String title, String body) {}
     private record Option(String label, String value) {}
     public FarboundScreen() { super(Component.literal("Farbound")); }
@@ -33,6 +35,9 @@ public final class FarboundScreen extends Screen {
     private boolean draft() { return state().status.equals("DRAFT") && !state().invited; }
     private boolean compactParty(){return state().phase.equals("ACTIVE")||state().phase.equals("PAUSED");}
     public void update() {
+        // Periodic state packets must not replace an editor or reset its selection.
+        // Changed settings and server notices still invalidate the modal normally.
+        if ("coordinates".equals(confirmation) && lastRevision == state().revision && !showNotice() && modalButtons.stream().anyMatch(w -> w instanceof CoordinateBox)) return;
         int focusX = getFocused() instanceof AbstractWidget w ? w.getX() : -1;
         int focusY = getFocused() instanceof AbstractWidget w ? w.getY() : -1;
         if (lastRevision != state().revision) { confirmation = null; pendingLaunch = false; closeMenu(); }
@@ -44,6 +49,7 @@ public final class FarboundScreen extends Screen {
     }
     @Override protected void init() {
         clearWidgets(); help.clear(); modalButtons.clear();
+        newExpeditionButton = null;
         layout = FarboundUiLayout.fit(width,height);
         var v = state(); lastRevision = v.revision;
         boolean editable = draft() && v.leader;
@@ -53,9 +59,10 @@ public final class FarboundScreen extends Screen {
             if(draft()||v.invited){
             toggle(216,148,v.homeward,true,editable,()->config("mode",v.homeward?"restart":"homeward"),v.homeward?"Required ("+v.homeRadius+" blocks)":"Optional",
                 "Require travelling home","On: finish within "+v.homeRadius+" horizontal blocks of your personal departure point, in the same dimension. Off: return with Finish expedition. Pausing never completes the homeward challenge.");
-            select(216,200,386,number(v.distance)+" blocks","distance",List.of(new Option("10,000 blocks","10000"),new Option("50,000 blocks","50000"),new Option("100,000 blocks","100000"),new Option("1,000,000 blocks","1000000")),editable,
+            select(216,200,386,v.customDestination?"Custom coordinates":number(v.distance)+" blocks","distance",List.of(new Option("10,000 blocks","10000"),new Option("50,000 blocks","50000"),new Option("100,000 blocks","100000"),new Option("1,000,000 blocks","1000000"),new Option("Custom coordinates…","custom")),editable,
                 "Distance","A safe destination is searched for between 100% and 110% of this distance. Server limits still apply.");
-            segments(216,251,386,"My location","World spawn",!v.worldSpawn,
+            if(v.customDestination)button(216,251,386,40,"X: "+v.customX+"  Z: "+v.customZ+" · Edit",()->confirm("coordinates"),editable,Style.NORMAL,"Custom coordinates","Safe Overworld surface within 100 blocks of this target. Height is automatic. Configured protected areas still apply.");
+            else segments(216,251,386,"My location","World spawn",!v.worldSpawn,
                 () -> config("reference","here"),() -> config("reference","spawn"),editable,
                 "Measure the destination distance from the leader's current Overworld location. Each participant keeps their own home.",
                 "Measure the destination distance from the world's spawn point. Each participant still returns to their own home.");
@@ -67,8 +74,8 @@ public final class FarboundScreen extends Screen {
                 v.xpStore?"XP: Store":"XP: Keep",v.xpStore?"Start at level 0. Finishing restores your exact home XP. Expedition XP is replaced, not added.":"Keep your current XP throughout the expedition and on return. No XP is stored or rolled back.");
             }else {
                 help.add(new Help(new Rect(216,148,386,40),"Travel home","Finish within "+v.homeRadius+" horizontal blocks of your personal departure point, in the same dimension, when required. Pausing does not complete the journey."));
-                help.add(new Help(new Rect(216,200,386,40),"Departure distance","The confirmed destination was selected between 100% and 110% of this distance. Route settings are fixed after departure."));
-                help.add(new Help(new Rect(216,251,386,40),"Distance reference","The distance ring used "+(v.worldSpawn?"world spawn":"the leader's departure location")+". Each participant keeps their own home."));
+                help.add(new Help(new Rect(216,200,386,40),"Departure distance",v.customDestination?"Custom Overworld surface destination, within 100 blocks of the chosen coordinates. Route settings are fixed after departure.":"The confirmed destination was selected between 100% and 110% of this distance. Route settings are fixed after departure."));
+                help.add(new Help(new Rect(216,251,386,40),"Distance reference",v.customDestination?"Safe surface near X "+v.customX+", Z "+v.customZ+". The global world spawn stays unchanged.":"The distance ring used "+(v.worldSpawn?"world spawn":"the leader's departure location")+". Each participant keeps their own home."));
                 help.add(new Help(new Rect(232,374,370,40),inventoryName(v.inventory),inventoryTip(v.inventory)));
             }
             boolean rules = !v.invited && v.leader && (draft() || v.status.equals("ACTIVE"));
@@ -78,7 +85,7 @@ public final class FarboundScreen extends Screen {
                 "The End","Allow or block End travel for participants only. Your home inventory and starting options stay fixed during the expedition.");
             info(192,168,"Require travelling home","Home means your departure point in the same dimension, within "+v.homeRadius+" horizontal blocks. This is independent of the distance reference.");
             info(151,220,"Distance","The destination lies between 100% and 110% of the selected distance.");
-            info(151,271,"Reference point","Use the leader's location or world spawn as the center of the distance ring.");
+            info(151,271,"Reference point",v.customDestination?"Custom target in the Overworld. Height is automatic; safe spawn within 100 blocks.":"Use the leader's location or world spawn as the center of the distance ring.");
             info(255,344,"Gear & rules","These are your personal gear choices. Only the leader proposes group dimension rules. Start choices cannot change after departure.");
             info(200,395,"Inventory","Stored gear stays safe at home. Empty the expedition inventory before restoring it.");
             info(200,439,"Ender chest","Normal ender chests hold expedition supplies until you finish.");
@@ -137,9 +144,12 @@ public final class FarboundScreen extends Screen {
         var v=state();
         button(28,716,180,46,"Close",this::onClose,true,Style.NORMAL,"Close","Close the menu without canceling your trip.");
         if(v.status.equals("NONE")) {
-            button(764,716,250,46,v.occupied?"Expedition already open":v.cooldownSeconds>0?"Check wait · "+v.cooldownSeconds+" sec":"New expedition",() -> sendAction("open",""),!v.occupied,Style.PRIMARY,"New expedition","Only one expedition can be open, including a paused expedition. Check again for the current cooldown remainder."); return;
+            newExpeditionButton=button(764,716,250,46,newExpeditionLabel(),() -> sendAction("open",""),!v.occupied&&FarboundClient.cooldownSeconds()==0,Style.PRIMARY,"New expedition","You can have one solo or group expedition, including a paused one. Other players can start independent expeditions. The remaining wait updates automatically."); return;
         }
-        if(v.invited) button(764,716,250,46,"Accept invitation",() -> sendAction("accept",""),true,Style.PRIMARY,"Join voluntarily","Join the preparation, then review your own gear before marking ready.");
+        if(v.invited) {
+            button(764,716,250,46,"Accept invitation",() -> sendAction("accept",""),true,Style.PRIMARY,"Join voluntarily","Join the preparation, then review your own gear before marking ready.");
+            button(226,724,238,30,"Decline invitation",()->sendAction("decline",""),true,Style.QUIET,"Decline invitation","Decline without changing your profile, then start your own expedition.");
+        }
         else if(draft()) {
             button(226,724,180,30,v.leader?"Discard draft":"Leave group",() -> confirm("leave"),true,Style.QUIET,"Leave preparation","No inventory has changed yet. The leader can discard the draft; a member can leave voluntarily.");
             if(v.ready) button(438,724,238,30,"Ready ✓ · Undo",() -> confirm("unready"),!pendingLaunch,Style.QUIET,"Readiness","Withdraw your readiness. A changed setting automatically clears everyone's readiness.");
@@ -150,7 +160,10 @@ public final class FarboundScreen extends Screen {
         if(v.proposedNether!=null)button(654,716,340,40,v.voted?"Rules approved":"Review rule change",()->confirm("vote"),!v.voted&&!v.invited,Style.NORMAL,"Rule proposal","Review the proposed dimension rules. Every unfinished participant must approve.");
     }
     private boolean showNotice() { return !state().notice.isEmpty()&&!state().notice.equals(acknowledgedNotice); }
-    private void confirm(String action) { confirmation=action;closeMenu();update(); }
+    private void confirm(String action) {
+        if(action.equals("coordinates")){coordinateX=Integer.toString(state().customX);coordinateZ=Integer.toString(state().customZ);coordinateError="";}
+        confirmation=action;closeMenu();update();
+    }
     private void modalControls() {
         // The modal consumes all background mouse/keyboard input; only its final controls are actionable.
         modalButtons.add(button(604,524,224,42,showNotice()?"Got it":"Back",() -> {acknowledgedNotice=state().notice;confirmation=null;update();},true,Style.NORMAL,"Back","Return to the dashboard without changing any profile."));
@@ -170,10 +183,23 @@ public final class FarboundScreen extends Screen {
             modalButtons.add(button(212,400,500,30,"Recover online participant",()->confirm("admin_recovery"),true,Style.NORMAL,"Retry recovery","Choose an online participant to reconcile safely. Offline profiles reconcile on login."));
             modalButtons.add(button(212,440,240,30,"Nether: "+(state().netherBlocked?"allow":"block"),()->confirm("admin_nether"),true,Style.NORMAL,"Operator Nether rule","Propose an enforced rule; new blocks wait for a normal return."));
             modalButtons.add(button(472,440,240,30,"End: "+(state().endBlocked?"allow":"block"),()->confirm("admin_end"),true,Style.NORMAL,"Operator End rule","Propose an enforced rule; new blocks wait for a normal return."));
+        }else if(!showNotice()&&confirmation.equals("coordinates")){
+            var x=addRenderableWidget(new CoordinateBox(212,340,288,42,"X coordinate"));
+            var z=addRenderableWidget(new CoordinateBox(524,340,304,42,"Z coordinate"));
+            x.setValue(coordinateX);z.setValue(coordinateZ);
+            x.setResponder(value->{coordinateX=value;coordinateError="";});z.setResponder(value->{coordinateZ=value;coordinateError="";});
+            modalButtons.add(x);modalButtons.add(z);
+            modalButtons.add(button(212,524,374,42,"Use coordinates",this::commitConfirmation,true,Style.PRIMARY,"Use coordinates","Apply X and Z. The server finds a safe surface within 100 blocks before changing any profile."));
         }else if(!showNotice())modalButtons.add(button(212,524,374,42,confirmation.equals("start")?(state().leader?"Confirm & start":"Confirm ready"):confirmation.equals("vote")?"Approve these rules":"Confirm",this::commitConfirmation,true,Style.PRIMARY,"Confirm","Apply the reviewed action using the current server revision."));
     }
     private void commitConfirmation() {
-        String action=confirmation; confirmation=null;
+        String action=confirmation;
+        if(action.equals("coordinates")){
+            try{var coords=ExpeditionPolicy.coordinates(coordinateX+" "+coordinateZ);confirmation=null;config("coordinates",coords[0]+" "+coords[1]);update();}
+            catch(IllegalArgumentException ex){coordinateError=ex.getMessage();}
+            return;
+        }
+        confirmation=null;
         if(action.equals("start")) {
             if(state().leader) {
                 if(state().ready) sendAction("launch","");
@@ -185,11 +211,19 @@ public final class FarboundScreen extends Screen {
     }
     @Override public void tick() {
         super.tick();
+        if(newExpeditionButton!=null){
+            newExpeditionButton.setMessage(Component.literal(newExpeditionLabel()));
+            newExpeditionButton.active=!state().occupied&&FarboundClient.cooldownSeconds()==0;
+        }
         if(pendingLaunch) {
             long elapsed=System.currentTimeMillis()-pendingSince;
             if(state().revision!=pendingRevision || elapsed>4000 || !state().notice.isEmpty()) {pendingLaunch=false;update();}
             else if(state().ready && elapsed>=150) {pendingLaunch=false;sendAction("launch","");update();}
         }
+    }
+    private String newExpeditionLabel(){
+        int seconds=FarboundClient.cooldownSeconds();
+        return state().occupied?"Expedition already open":seconds>0?"Wait · "+seconds+" sec":"New expedition";
     }
     private void sendAction(String action,String value) {
         // A new request may fail with the same text. Only periodic repeats of the
@@ -204,7 +238,7 @@ public final class FarboundScreen extends Screen {
     }
     private void select(int x,int y,int w,String label,String key,List<Option> values,boolean enabled,String title,String tip) {
         button(x,y,w,40,label,() -> {
-            if(key.equals(dropdown)){closeMenu();return;} dropdown=key;options=values;choose=value -> config(key,value);
+            if(key.equals(dropdown)){closeMenu();return;} dropdown=key;options=values;choose=value -> {if(key.equals("distance")&&value.equals("custom"))confirm("coordinates");else config(key,value);};
             int menuHeight=values.size()*38;int my=Math.min(y+43,700-menuHeight);
             menuBounds=new Rect(x,my,w,menuHeight);menuSelection=0;
             if(key.equals("opacity"))choose=value->{FarboundClient.opacity=Integer.parseInt(value);FarboundClient.preferences();closeMenu();update();};
@@ -228,7 +262,10 @@ public final class FarboundScreen extends Screen {
         }
         if(confirmation!=null||showNotice()) {
             if(e.button()!=InputConstants.MOUSE_BUTTON_LEFT)return true;
-            for(var control:List.copyOf(modalButtons))if(control.isMouseOver(e.x(),e.y())){control.mouseClicked(e,doubleClick);break;}
+            for(var control:List.copyOf(modalButtons))if(control.isMouseOver(e.x(),e.y())){
+                if(control.mouseClicked(e,doubleClick)&&children().contains(control))setFocused(control);
+                break;
+            }
             return true;
         }
         boolean handled=super.mouseClicked(e,doubleClick);
@@ -248,7 +285,7 @@ public final class FarboundScreen extends Screen {
     @Override public boolean mouseDragged(MouseButtonEvent e,double dx,double dy){return super.mouseDragged(local(e),dx/layout.scale(),dy/layout.scale());}
     @Override public boolean mouseScrolled(double x,double y,double sx,double sy){return super.mouseScrolled(layout.x(x),layout.y(y),sx,sy);}
     @Override public void mouseMoved(double x,double y){super.mouseMoved(layout.x(x),layout.y(y));}
-    @Override public boolean charTyped(CharacterEvent event){return confirmation!=null||showNotice()||dropdown!=null||super.charTyped(event);}
+    @Override public boolean charTyped(CharacterEvent event){return (!"coordinates".equals(confirmation)&&confirmation!=null)||showNotice()||dropdown!=null||super.charTyped(event);}
     @Override public boolean keyPressed(KeyEvent event) {
         if(dropdown!=null) {
             if(event.isEscape())closeMenu();
@@ -260,6 +297,10 @@ public final class FarboundScreen extends Screen {
         if(confirmation!=null||showNotice()) {
             if(event.isCycleFocus())return super.keyPressed(event);
             if(event.isEscape()){confirmation=null;acknowledgedNotice=state().notice;update();}
+            else if("coordinates".equals(confirmation)){
+                if(event.isConfirmation()){commitConfirmation();return true;}
+                return super.keyPressed(event);
+            }
             else if(event.isSelection())return getFocused()!=null&&getFocused().keyPressed(event);
             return true;
         }
@@ -300,8 +341,8 @@ public final class FarboundScreen extends Screen {
         if(!draft()&&!state().invited){
             var v=state();
             text(g,v.homeward?"Required · "+v.homeRadius+"-block home area":"Optional · return via Finish",216,162,15,TEXT);
-            text(g,number(v.distance)+"–"+number(v.distance*11L/10)+" blocks",216,214,17,TEXT);
-            text(g,v.worldSpawn?"World spawn":"Leader's departure location",216,265,16,TEXT);
+            text(g,v.customDestination?"Custom coordinates":number(v.distance)+"–"+number(v.distance*11L/10)+" blocks",216,214,17,TEXT);
+            text(g,v.customDestination?"X: "+v.customX+"  Z: "+v.customZ+" · ±100 blocks":v.worldSpawn?"World spawn":"Leader's departure location",216,265,16,TEXT);
             text(g,inventoryName(v.inventory),232,388,17,TEXT);
             text(g,v.enderStore?"Stored separately":"Travels with you",232,432,17,TEXT);
             text(g,v.xpStore?"Stored separately":"Travels with you",232,474,17,TEXT);
@@ -358,7 +399,7 @@ public final class FarboundScreen extends Screen {
         if(v.proposedNether!=null)return "PROPOSAL  ·  Nether "+(v.proposedNether?"blocked":"allowed")+"  ·  End "+(v.proposedEnd?"blocked":"allowed")+(v.voted?"  ·  Approved":"  ·  Review to approve");
         if(v.phase.equals("ACTIVE"))return v.homeward?(v.homeReached?"Home area reached  ·  Finish expedition when ready":"Home: "+number(v.homeDistance)+" blocks away  ·  Finish within "+v.homeRadius+" horizontal blocks in your home dimension"):"Explore at your own pace  ·  Finish to return home, or pause to continue later";
         String gear=v.inventory.equals("STORE")?"Home gear stored":v.inventory.equals("KEEP")?"Gear travels with you":"Empty inventory required";
-        return (v.homeward?"Home travel required":"Home travel optional")+"  ·  "+number(v.distance)+"–"+number(v.distance*11L/10)+" blocks  ·  "+gear+(v.rulesChanged?"  ·  Rules changed":"");
+        return (v.homeward?"Home travel required":"Home travel optional")+"  ·  "+destinationSummary(v)+"  ·  "+gear+(v.rulesChanged?"  ·  Rules changed":"");
     }
     private void renderMenu(GuiGraphicsExtractor g,int mx,int my) {
         g.nextStratum();frame(g,menuBounds.x(),menuBounds.y(),menuBounds.w(),menuBounds.h(),0xFA0B2132,0xFF6AB5D6,3);
@@ -380,7 +421,7 @@ public final class FarboundScreen extends Screen {
             String body=switch(dropdown) {
                 case "inventory" -> inventoryTip(option.value());
                 case "opacity" -> option.label()+" background opacity. This preference is saved on your client.";
-                case "distance" -> "Search for a safe destination between "+number(Long.parseLong(option.value()))+" and "+number(Long.parseLong(option.value())*11/10)+" blocks from the selected reference. Server limits apply.";
+                case "distance" -> option.value().equals("custom")?"Enter Overworld X and Z. The server selects a safe surface within 100 blocks. No OP permission required.":"Search for a safe destination between "+number(Long.parseLong(option.value()))+" and "+number(Long.parseLong(option.value())*11/10)+" blocks from the selected reference. Server limits apply.";
                 case "countdown" -> option.value().equals("0")?"Depart as soon as a safe destination is ready. No countdown delay.":"Wait "+option.value()+" seconds after a safe destination is ready. Damage, logout or lost readiness cancels departure.";
                 default -> "";
             };
@@ -395,10 +436,12 @@ public final class FarboundScreen extends Screen {
         String title;var lines=new ArrayList<String>();var v=state();
         if(showNotice()){title="Action unavailable";lines.addAll(wrap(v.notice,588,18));}
         else {
-            title=switch(confirmation){case "start"->"Review your expedition";case "leave"->"Leave preparation?";case "unready"->"Withdraw readiness?";case "vote"->"Review rule change";case "abort"->"Emergency return";case "pause"->"Pause & return";case "resume"->"Resume expedition";case "abandon_paused"->"Abandon paused expedition?";case "admin"->"Server tools";case "admin_discard"->"Archive untouched draft?";case "admin_nether","admin_end"->"Enforce dimension rule?";default->"Finish expedition";};
-            if(confirmation.equals("start")){
-                lines.add((v.homeward?"Home travel required":"Home travel optional")+" · "+number(v.distance)+" blocks");
-                lines.add("Reference: "+(v.worldSpawn?"World spawn":"Leader's location")+" · Home radius: "+v.homeRadius+" horizontal blocks");
+            title=switch(confirmation){case "coordinates"->"Custom destination";case "start"->"Review your expedition";case "leave"->"Leave preparation?";case "unready"->"Withdraw readiness?";case "vote"->"Review rule change";case "abort"->"Emergency return";case "pause"->"Pause & return";case "resume"->"Resume expedition";case "abandon_paused"->"Abandon paused expedition?";case "admin"->"Server tools";case "admin_discard"->"Archive untouched draft?";case "admin_nether","admin_end"->"Enforce dimension rule?";default->"Finish expedition";};
+            if(confirmation.equals("coordinates")){
+                lines.add("Overworld X / Z · safe surface within 100 blocks");
+            }else if(confirmation.equals("start")){
+                lines.add((v.homeward?"Home travel required":"Home travel optional")+" · "+destinationSummary(v));
+                lines.add((v.customDestination?"Overworld surface · search radius: 100 blocks":"Reference: "+(v.worldSpawn?"World spawn":"Leader's location"))+" · Home radius: "+v.homeRadius);
                 lines.add("Inventory: "+inventoryName(v.inventory)+" · Ender chest: "+(v.enderStore?"stored":"kept"));
                 lines.add("XP: "+(v.xpStore?"start at 0; restore exact home XP":"keep current XP"));
                 lines.add("Nether: "+(v.netherBlocked?"blocked":"allowed")+" · End: "+(v.endBlocked?"blocked":"allowed")+" · Delay: "+v.countdown+" sec");
@@ -410,7 +453,7 @@ public final class FarboundScreen extends Screen {
                 lines.add("New End rule: "+(Boolean.TRUE.equals(v.proposedEnd)?"blocked":"allowed"));
                 lines.add("A new block waits until all participants return.");lines.add("All active members must approve the same proposal.");
             }else if(confirmation.equals("pause")){
-                lines.add("Save expedition position, inventory, XP and personal state.");lines.add("Return to your home profile without completing this trip.");lines.add("Only one expedition stays open. Resume this same trip later.");lines.add("Stored ender chest contents stay separate; kept contents travel.");
+                lines.add("Save expedition position, inventory, XP and personal state.");lines.add("Return to your home profile without completing this trip.");lines.add("Your expedition stays open. Other players can travel independently.");lines.add("Stored ender chest contents stay separate; kept contents travel.");
             }else if(confirmation.equals("resume")){
                 lines.add("Save your updated home profile and return to the expedition.");lines.add("Your expedition gear, XP and personal state will be restored.");lines.add("A safe saved destination is required. No profiles are merged.");
             }else if(confirmation.equals("abandon_paused")){
@@ -425,9 +468,15 @@ public final class FarboundScreen extends Screen {
             else {lines.add("Empty stored inventory and ender chest slots first.");lines.add("Your saved home gear is returned exactly once.");lines.add(v.xpStore?"Home XP replaces expedition XP; it is not added.":"Your current XP travels with you.");lines.add("Builds and loot left in chests remain in the world.");if(confirmation.equals("abort"))lines.add("A walk home attempt counts as abandoned.");}
         }
         text(g,title,212,244,24,CYAN);boolean inspect="admin_inspect".equals(confirmation);int y=296;for(String line:lines){text(g,clip(line,608,inspect?13:17),212,y,inspect?13:17,TEXT);y+=inspect?23:27;}
+        if("coordinates".equals(confirmation)&&!showNotice()){
+            text(g,"X",212,318,14,MUTED);text(g,"Z",524,318,14,MUTED);
+            text(g,"Height is automatic. World border and protected areas apply.",212,406,14,MUTED);
+            var errors=wrap(coordinateError,600,14);for(int i=0;i<Math.min(3,errors.size());i++)text(g,errors.get(i),212,444+i*18,14,0xFFFFB6A8);
+        }
         // Render only the modal's controls over the scrim, not the dashboard a second time.
         for(var b:modalButtons)b.extractRenderState(g,-1,-1,0);
     }
+    private static String destinationSummary(FarboundNetwork.View v){return v.customDestination?"X "+v.customX+", Z "+v.customZ+" (±100)":number(v.distance)+"–"+number(v.distance*11L/10)+" blocks";}
     private static String opacityName(){return FarboundClient.opacity<165?"Low":FarboundClient.opacity<215?"Medium":"High";}
     private static String inventoryName(String value){return switch(value){case "KEEP"->"Take everything";case "EMPTY"->"Legacy empty profile";default->"Store at home";};}
     private static String inventoryTip(String value){return switch(value){case "KEEP"->"Take your current items, armor and offhand with you. No storage or item rollback on return.";case "EMPTY"->"Empty your inventory, armor and offhand before departure. Nothing is stored; expedition items stay with you on return.";default->"Protect your original inventory, armor and offhand at home. Start empty and empty these slots before restoring the originals.";};}
@@ -454,12 +503,13 @@ public final class FarboundScreen extends Screen {
             else centered(g,label,x+w/2,y+(h-17)/2,17,color);
         }
     }
-    private static final class InviteBox extends EditBox {
-        InviteBox(int x,int y,int w,int h){super(Minecraft.getInstance().font,x,y,w,h,Component.literal("Player name"));setBordered(false);}
+    private static final class CoordinateBox extends EditBox {
+        private final String label;
+        CoordinateBox(int x,int y,int w,int h,String label){super(Minecraft.getInstance().font,x,y,w,h,Component.literal(label));this.label=label;setBordered(false);setMaxLength(10);}
         @Override public void onClick(MouseButtonEvent e,boolean doubleClick){setFocused(true);int n=Minecraft.getInstance().font.plainSubstrByWidth(getValue(),Math.max(0,(int)((e.x()-getX()-12)*9/17))).length();setCursorPosition(n);setHighlightPos(n);}
         @Override public void extractWidgetRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
             frame(g,getX(),getY(),getWidth(),getHeight(),0xAA0B2130,isFocused()?0xFF78D5F5:0xFF4E7085,3);
-            String value=getValue();text(g,value.isEmpty()?"Player name":value,getX()+12,getY()+12,17,value.isEmpty()?MUTED:TEXT);
+            String value=getValue();text(g,value.isEmpty()?label:value,getX()+12,getY()+12,17,value.isEmpty()?MUTED:TEXT);
             if(isFocused()){
                 int cursor=getX()+12+textWidth(value.substring(0,Math.min(getCursorPosition(),value.length())),17);
                 if(!getHighlighted().isEmpty()){int sw=textWidth(getHighlighted(),17);int sx=getCursorPosition()+getHighlighted().length()<=value.length()&&value.substring(getCursorPosition()).startsWith(getHighlighted())?cursor:cursor-sw;g.fill(sx,getY()+9,sx+sw,getY()+31,0x5543B7E9);}

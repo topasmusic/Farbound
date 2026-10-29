@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.2 · Minecraft 26.2 and 26.3 · 29 October 2026
+
+- The wait for a new expedition counts down live and the button becomes available automatically.
+- Custom destination inputs retain keyboard focus, cursor position and selection during periodic server updates.
+- Reject missing or mismatched Farbound client versions during login, before joining the world.
+- Includes the independent expeditions, custom destinations and player access improvements from 1.0.1.
+
+## 1.0.1 · Minecraft 26.2 and 26.3 · 27 October 2026
+
+- Enter custom Overworld X / Z coordinates and search for a safe group spawn within 100 horizontal blocks. Height is automatic.
+- Run independent solo and group expeditions simultaneously; each player keeps one active or paused membership.
+- All players can use Farbound without OP permission or a player allowlist. Administrative recovery tools remain protected.
+- Decline invitations and immediately start your own expedition.
+- Preserve existing expeditions during the new storage-format migration, with an original-file backup. Update the server and participating clients together.
+
 ## 1.0.0 · Minecraft 26.2 port · 22 October 2026
 
 - Adds a separate Fabric build for Minecraft 26.2 with the same expedition features.
